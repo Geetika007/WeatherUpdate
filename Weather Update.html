@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather Update</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .container {
+      text-align: center;
+      z-index: 1;
+    }
+    h1 {
+      color: #333;
+      font-size: 3em;
+    }
+    .search-bar {
+      margin: 20px 0;
+    }
+    .search-bar input {
+      padding: 10px;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 5px;
+      width: 300px;
+    }
+    .date-time {
+      margin: 20px 0;
+      color: #333;
+      font-size: 1.5em;
+    }
+    .prompt {
+      color: #333;
+      font-size: 1.2em;
+    }
+    /* Bubble animation */
+    .bubble {
+      position: absolute;
+      bottom: -100px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: float 8s infinite linear;
+    }
+    @keyframes float {
+      0% {
+        transform: translateY(0);
+        opacity: 0.8;
+      }
+      100% {
+        transform: translateY(-100vh);
+        opacity: 0;
+      }
+    }
+    .weather-card {
+      background: rgba(99, 124, 234, 0.61);
+      backdrop-filter: blur(90px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-blue-100 to-blue-200">
+
+  <div class="weather-card bg-gradient-to-br from-blue-200 via-blue-300 to-blue-400 p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-screen-sm text-center border border-white/30 m-4 min-h-[90vh] flex flex-col justify-start">
+    <h1 class="text-2xl sm:text-3xl font-bold mb-4 text-gray-800 tracking-wide">Kairós</h1>
+    <p id="currentDateTime" class="text-xs sm:text-sm mb-6 text-gray-900"></p>
+
+    <div class="flex flex-col sm:flex-row items-center gap-3 sm:gap-2 mb-6">
+      <input
+        id="locationInput"
+        onkeypress="if(event.key === 'Enter') getWeather();"
+        type="text"
+        placeholder="Enter city or state"
+        class="flex-grow w-full p-3 border border-gray-300 rounded-xl bg-white/80 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
+      <button
+        onclick="getWeather()"
+        class="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md transition"
+        aria-label="Search"
+      >
+        Search
+      </button>
+    </div>
+
+    <div id="weatherResult" class="mt-4 text-gray-700 text-sm sm:text-base flex-grow flex flex-col justify-center">
+      <p>Enter a location to see the weather</p>
+    </div>
+  </div>
+
+  <script>
+     function createBubble() {
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      const size = Math.random() * 60 + 20;
+      bubble.style.width = `${size}px`;
+      bubble.style.height = `${size}px`;
+      bubble.style.left = `${Math.random() * 100}vw`;
+      bubble.style.animationDuration = `${Math.random() * 4 + 4}s`;
+      document.body.appendChild(bubble);
+      setTimeout(() => bubble.remove(), 8000);
+    }
+    setInterval(createBubble, 500);
+    lucide.createIcons();
+
+    function updateDateTime() {
+      const now = new Date();
+      const options = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      };
+      document.getElementById('currentDateTime').textContent = now.toLocaleString('en-US', options);
+    }
+    updateDateTime();
+    setInterval(updateDateTime, 60000);
+
+    async function getWeather() {
+      const apiKey = '4ab605ff12a4dde18240f589b49c2744';
+      const location = document.getElementById('locationInput').value.trim();
+      const resultContainer = document.getElementById('weatherResult');
+
+      if (!location) {
+        resultContainer.innerHTML = `<p class="text-red-500">Please enter a city or state</p>`;
+        return;
+      }
+
+      const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${apiKey}&units=metric`;
+
+      try {
+        const weatherResponse = await fetch(weatherUrl);
+        if (!weatherResponse.ok) throw new Error('Location not found or invalid API key');
+        const weatherData = await weatherResponse.json();
+
+        const temp = weatherData.main.temp;
+        const feelsLike = weatherData.main.feels_like;
+        const pressure = weatherData.main.pressure;
+        const humidity = weatherData.main.humidity;
+        const windSpeed = weatherData.wind.speed;
+        const condition = weatherData.weather[0].main.toLowerCase();
+        const description = weatherData.weather[0].description;
+        const city = weatherData.name;
+        const { lat, lon } = weatherData.coord;
+
+        const airQualityUrl = `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}`;
+        const airQualityResponse = await fetch(airQualityUrl);
+        let airQuality = 'N/A';
+        if (airQualityResponse.ok) {
+          const airData = await airQualityResponse.json();
+          const aqi = airData.list[0].main.aqi;
+          airQuality = ['Good', 'Fair', 'Moderate', 'Poor', 'Very Poor'][aqi - 1] || 'Unknown';
+        }
+
+        resultContainer.innerHTML = `
+          <p class="text-xl font-semibold mb-2">${city}</p>
+          <p class="text-6xl font-bold mb-6 text-gray-900">${temp}°C</p>
+          <p class="mb-4 capitalize text-gray-800">${description}</p>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+            <div class="bg-white/60 rounded-xl p-3 shadow-sm">🤒 Feels Like: ${feelsLike}°C</div>
+            <div class="bg-white/60 rounded-xl p-3 shadow-sm">💨 Wind: ${windSpeed} m/s</div>
+            <div class="bg-white/60 rounded-xl p-3 shadow-sm">💧 Humidity: ${humidity}%</div>
+            <div class="bg-white/60 rounded-xl p-3 shadow-sm">📈 Pressure: ${pressure} hPa</div>
+            <div class="bg-white/60 rounded-xl p-3 shadow-sm">🌫️ Air Quality: ${airQuality}</div>
+          </div>
+        `;
+
+        // Reset background
+        document.body.className = 'min-h-screen flex items-center justify-center overflow-hidden';
+
+        // Apply dynamic background based on weather
+        if (condition.includes('rain') || condition.includes('drizzle')) {
+          document.body.classList.add('rain');
+        } else if (condition.includes('snow') || temp < 5) {
+          document.body.classList.add('cold');
+        } else if (condition.includes('clear') || condition.includes('sun')) {
+          document.body.classList.add('clear');
+        } else if (condition.includes('cloud')) {
+          document.body.classList.add('cloudy');
+        } else if (temp > 28) {
+          document.body.classList.add('hot');
+        } else {
+          document.body.classList.add('bg-gradient-to-br', 'from-blue-100', 'to-white');
+        }
+
+      } catch (error) {
+        resultContainer.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
